@@ -11,13 +11,14 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 RUN mkdir diart
-WORKDIR /diart/
+WORKDIR /diart/src/diart
 
 # Copy the application files
 COPY . .
 
 # Install diart and its dependencies
 RUN pip install diart pyannote-audio soundfile flask flask-cors ffmpeg
+
 RUN conda create -n diart python=3.8
 RUN conda install portaudio
 RUN conda install pysoundfile -c conda-forge
