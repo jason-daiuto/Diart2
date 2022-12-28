@@ -81,13 +81,6 @@ def runDiart():
 def stream():
     speaker_object = Speaker()
     return speaker_object()
-    # def dataFeed():
-    #     speaker_object = Speaker()
-    #     while True:
-    #         #gotcha
-    #         sleep(1.9)
-    #         yield f'{speaker_object()}'
-    # return Response(dataFeed(), mimetype='text/event-stream')
             
 if __name__ == "__main__":
     b = Thread(target= app.run)
