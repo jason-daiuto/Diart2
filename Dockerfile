@@ -17,7 +17,7 @@ WORKDIR /diart/src/diart
 COPY . .
 
 # Install diart and its dependencies
-RUN pip install diart pyannote-audio soundfile flask flask-cors ffmpeg
+RUN pip install diart pyannote-audio flask flask-cors ffmpeg
 
 RUN conda create -n diart python=3.8
 RUN conda install portaudio

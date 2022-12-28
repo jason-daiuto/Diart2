@@ -1,17 +1,14 @@
 import argparse
 from pathlib import Path
-from flask import Flask, Response
+from flask import Flask
 from flask_cors import CORS
 import diart.argdoc as argdoc
 import diart.sources as src
 import numpy as np
 import torch
-from datetime import datetime
-from time import sleep
 from diart import utils
 from threading import Thread
-import diart.sinks as sinks
-from diart.blocks import OnlineSpeakerDiarization, PipelineConfig, Binarize
+from diart.blocks import OnlineSpeakerDiarization, PipelineConfig
 from diart.blocks.utils import Speaker
 from diart.inference import RealTimeInference
 from diart.models import SegmentationModel, EmbeddingModel
