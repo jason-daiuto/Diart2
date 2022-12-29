@@ -1,32 +1,24 @@
 import argparse
 from pathlib import Path
-from flask import Flask, Response
-from flask_cors import CORS
+
 import diart.argdoc as argdoc
-import diart.sources as src
-import numpy as np
+import pandas as pd
 import torch
-from datetime import datetime
-from time import sleep
 from diart import utils
-from threading import Thread
-import diart.sinks as sinks
-from diart.blocks import OnlineSpeakerDiarization, PipelineConfig, Binarize
-from diart.blocks.utils import Speaker
-from diart.inference import RealTimeInference
+from diart.blocks import OnlineSpeakerDiarization, PipelineConfig
+from diart.inference import Benchmark
 from diart.models import SegmentationModel, EmbeddingModel
-# from diart.sinks import RTTMWriter
 
-app = Flask(__name__)
-CORS(app)
 
-def runDiart():
+def run():
     parser = argparse.ArgumentParser()
-    parser.add_argument("source", type=str, help="Path to an audio file | 'microphone'")
+    parser.add_argument("root", type=Path, help="Directory with audio files CONVERSATION.(wav|flac|m4a|...)")
     parser.add_argument("--segmentation", default="pyannote/segmentation", type=str,
                         help=f"{argdoc.SEGMENTATION}. Defaults to pyannote/segmentation")
     parser.add_argument("--embedding", default="pyannote/embedding", type=str,
                         help=f"{argdoc.EMBEDDING}. Defaults to pyannote/embedding")
+    parser.add_argument("--reference", type=Path,
+                        help="Optional. Directory with RTTM files CONVERSATION.rttm. Names must match audio files")
     parser.add_argument("--step", default=0.5, type=float, help=f"{argdoc.STEP}. Defaults to 0.5")
     parser.add_argument("--latency", default=0.5, type=float, help=f"{argdoc.LATENCY}. Defaults to 0.5")
     parser.add_argument("--tau", default=0.5, type=float, help=f"{argdoc.TAU}. Defaults to 0.5")
@@ -35,11 +27,10 @@ def runDiart():
     parser.add_argument("--gamma", default=3, type=float, help=f"{argdoc.GAMMA}. Defaults to 3")
     parser.add_argument("--beta", default=10, type=float, help=f"{argdoc.BETA}. Defaults to 10")
     parser.add_argument("--max-speakers", default=20, type=int, help=f"{argdoc.MAX_SPEAKERS}. Defaults to 20")
-    parser.add_argument("--no-plot", dest="no_plot", action="store_true", help="Skip plotting for faster inference")
+    parser.add_argument("--batch-size", default=32, type=int, help=f"{argdoc.BATCH_SIZE}. Defaults to 32")
     parser.add_argument("--cpu", dest="cpu", action="store_true",
                         help=f"{argdoc.CPU}. Defaults to GPU if available, CPU otherwise")
-    parser.add_argument("--output", type=str,
-                        help=f"{argdoc.OUTPUT}. Defaults to home directory if SOURCE == 'microphone' or parent directory if SOURCE is a file")
+    parser.add_argument("--output", type=Path, help=f"{argdoc.OUTPUT}. Defaults to no writing")
     parser.add_argument("--hf-token", default="true", type=str,
                         help=f"{argdoc.HF_TOKEN}. Defaults to 'true' (required by pyannote)")
     args = parser.parse_args()
@@ -50,40 +41,20 @@ def runDiart():
     args.segmentation = SegmentationModel.from_pyannote(args.segmentation, args.hf_token)
     args.embedding = EmbeddingModel.from_pyannote(args.embedding, args.hf_token)
 
-    # Define online speaker diarization pipeline
-    config = PipelineConfig.from_namespace(args)
-    pipeline = OnlineSpeakerDiarization(config)
-
-    # Manage audio source
-    block_size = int(np.rint(config.step * config.sample_rate))
-    if args.source != "microphone":
-        args.source = Path(args.source).expanduser()
-        args.output = args.source.parent if args.output is None else Path(args.output)
-        stream_padding = config.latency - config.step
-        audio_source = src.FileAudioSource(args.source, config.sample_rate, stream_padding, block_size)
-    else:
-        args.output = Path("~/").expanduser() if args.output is None else Path(args.output)
-        audio_source = src.MicrophoneAudioSource(config.sample_rate, block_size)
-
-    # Run online inference
-    inference = RealTimeInference(
-        pipeline,
-        audio_source,
-        batch_size=1,
-        do_profile=True,
-        do_plot=args.no_plot,
+    benchmark = Benchmark(
+        args.root,
+        args.reference,
+        args.output,
         show_progress=True,
-        leave_progress_bar=True,
+        show_report=True,
+        batch_size=args.batch_size,
     )
-    inference()
 
-@app.route('/stream')
-def stream():
-    speaker_object = Speaker()
-    return speaker_object()
-            
+    pipeline = OnlineSpeakerDiarization(PipelineConfig.from_namespace(args))
+    report = benchmark(pipeline)
+    if args.output is not None and isinstance(report, pd.DataFrame):
+        report.to_csv(args.output / "benchmark_report.csv")
+
+
 if __name__ == "__main__":
-    b = Thread(target= app.run)
-    a = Thread(target=runDiart)
-    a.start()
-    b.start()
+    run()
