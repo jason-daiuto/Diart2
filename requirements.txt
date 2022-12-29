@@ -24,7 +24,7 @@ commonmark==0.9.1
 contourpy==1.0.6
 cycler==0.11.0
 decorator==5.1.1
--e git+https://github.com/jason-daiuto/Diart2.git@6bb1da5cc38707a028e983e599cdf0ec5630a8e8#egg=diart
+-e git+https://github.com/jason-daiuto/Diart2.git@4e3bbae25238df736a65961c90a05bbf35a030a4#egg=diart
 docopt==0.6.2
 einops==0.3.2
 ffmpeg==1.4
